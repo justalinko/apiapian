@@ -5,12 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Ip2country extends Model
+class Isproxy extends Model
 {
     use HasFactory;
-
-    public function isproxy()
+    public function ip2country()
     {
-        return $this->hasOne(Isproxy::class);
+        return $this->belongsTo(Ip2country::class);
     }
 }
