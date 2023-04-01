@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use proxycheck\proxycheck;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -31,6 +32,8 @@ class BotController extends Controller
             $useragentcheck = $this->checkUserAgent($useragent);
             $hostnamecheck = $this->checkHostname($hostname);
             $ispcheck = $this->checkISP($isp);
+
+            $proxycheckapi = $this->proxycheck($ip);
             if ($ipcheck) {
                 $reason = "Bot IP Detected";
                 $is_bot = true;
@@ -49,7 +52,12 @@ class BotController extends Controller
             } elseif ($ip2country->hosting) {
                 $reason = "Hosting Detected";
                 $is_bot = true;
-            } else {
+            } elseif($proxycheckapi->block == 'yes' || $proxycheckapi->$ip->proxy == 'yes')
+            {
+                $reason = ($proxycheckapi->block_reason == 'na') ? $proxycheckapi->$ip->type : $proxycheckapi->block_reason;
+                $is_bot = true;
+            }else
+            {
                 $reason = 'OK';
                 $is_bot = false;
             }
@@ -64,6 +72,7 @@ class BotController extends Controller
             $response['why'] = $reason;
             $response['reason'] = $reason;
             $response['ip2country'] = $ip2country;
+            $response['proxycheck'] = $proxycheckapi;
             Cache::put($this->cacheName($ip, $useragent), $response, 60 * 24);
             return response()->json($response, 200, [], JSON_PRETTY_PRINT);
         }
@@ -176,5 +185,44 @@ class BotController extends Controller
             'total_isproxy' => number_format($isProxy),
         ];
         return response()->json($response, 200, [], JSON_PRETTY_PRINT);
+    }
+
+
+    public function proxycheck($ip)
+    {
+        $proxycheck_options = 
+        [
+            'API_KEY' => env('PROXYCHECK_API'), // Your API Key.
+            'ASN_DATA' => 1, // Enable ASN data response.
+            'DAY_RESTRICTOR' => 7, // Restrict checking to proxies seen in the past # of days.
+            'VPN_DETECTION' => 1, // Check for both VPN's and Proxies instead of just Proxies.
+            'RISK_DATA' => 1, // 0 = Off, 1 = Risk Score (0-100), 2 = Risk Score & Attack History.
+            'INF_ENGINE' => 1, // Enable or disable the real-time inference engine.
+            'TLS_SECURITY' => 0, // Enable or disable transport security (TLS).
+            'QUERY_TAGGING' => 1, // Enable or disable query tagging.
+            'MASK_ADDRESS' => 0, // Anonymises the local-part of an email address (e.g. anonymous@domain.tld)
+            'CUSTOM_TAG' => '@PrivApi.Tech', // Specify a custom query tag instead of the default (Domain+Page).
+        ];
+        $proxycheckModel = \App\Models\Proxycheck::where('ip', $ip)->first();
+        if ($proxycheckModel) {
+            $data['status'] = 'ok';
+            $data[$ip] = json_decode($proxycheckModel->raw);
+            $data['block'] = $proxycheckModel->block;
+            $data['block_reason'] = $proxycheckModel->block_reason;
+            return (object) $data;
+        }else{
+
+        $proxycheck = \proxycheck\proxycheck::check($ip, $proxycheck_options);
+        $ip2country = \App\Models\Ip2country::where('ip', $ip)->first();
+        $proymod = new \App\Models\Proxycheck;
+        $proymod->ip2country_id = $ip2country->id;
+        $proymod->ip = $ip;
+        $proymod->raw = json_encode($proxycheck[$ip]);
+        $proymod->block = $proxycheck['block'];
+        $proymod->block_reason = $proxycheck['block_reason'];
+        $proymod->save();
+
+            return (Object) $proxycheck;
+        }
     }
 }

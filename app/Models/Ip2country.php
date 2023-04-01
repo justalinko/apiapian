@@ -13,4 +13,8 @@ class Ip2country extends Model
     {
         return $this->hasOne(Isproxy::class);
     }
+    public function proxycheck()
+    {
+        return $this->hasOne(Proxycheck::class);
+    }
 }
