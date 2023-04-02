@@ -46,10 +46,10 @@ class BotController extends Controller
             } elseif ($ispcheck) {
                 $reason = "Bot ISP Detected";
                 $is_bot = true;
-            } elseif ($ip2country->proxy) {
+            } elseif ($ip2country?->proxy) {
                 $reason = "Proxy Detected";
                 $is_bot = true;
-            } elseif ($ip2country->hosting) {
+            } elseif ($ip2country?->hosting) {
                 $reason = "Hosting Detected";
                 $is_bot = true;
             } elseif($proxycheckapi->block == 'yes' || $proxycheckapi->$ip?->proxy == 'yes')
@@ -110,12 +110,14 @@ class BotController extends Controller
             $ip2country->save();
 
             $isproxy = new \App\Models\Isproxy;
+            if($isproxy->where('ip2country_id',$ip2country->id)->where('ip' , $response->query)->count() < 1){
             $isproxy->ip2country_id = $ip2country->id;
             $isproxy->ip = $response->query;
             $isproxy->is_proxy = $response->proxy;
             $isproxy->is_hosting = $response->hosting;
             //$isproxy->is_mobile = $response->mobile;
             $isproxy->save();
+            }
 
             return $response;
         }
