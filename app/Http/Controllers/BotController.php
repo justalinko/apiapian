@@ -52,7 +52,7 @@ class BotController extends Controller
             } elseif ($ip2country?->hosting) {
                 $reason = "Hosting Detected";
                 $is_bot = true;
-            } elseif($proxycheckapi->block == 'yes' || $proxycheckapi->$ip?->proxy == 'yes')
+            } elseif(@$proxycheckapi->block == 'yes' || @$proxycheckapi->$ip?->proxy == 'yes')
             {
                 $reason = ($proxycheckapi->block_reason == 'na') ? $proxycheckapi->$ip?->type : $proxycheckapi->block_reason;
                 $is_bot = true;
